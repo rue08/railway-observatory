@@ -1,0 +1,11 @@
+node_modules/
+.env
+*.log
+npm-debug.log*
+
+# Prisma
+prisma/migrations/dev.db
+.DS_Store
+
+# Project
+PROJECT.md

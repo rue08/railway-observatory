@@ -1,0 +1,135 @@
+// Phase 1 (MVP) schema — see project brief §16, §31, §33 and the
+// Delay Intelligence Data Map artifact for the column → source rationale.
+//
+// Deliberately excludes: OperationalEvent, WeatherEvent, NewsEvent,
+// DataSource, SourceRecord, Prediction, ReliabilityScore.
+// Those are Phase 2+ once the live pipeline is proven.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---- Static reference data --------------------------------------------
+// Loaded from RailRadar's per-train schedule data; refreshed rarely.
+
+model Station {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  // Nullable — no source we have gives coordinates (confirmed against
+  // RailRadar's actual endpoints, Aug 29 2026; see PROJECT.md §13). Deferred
+  // rather than blocking the reference-data import on a placeholder value.
+  latitude  Float?
+  longitude Float?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  routeStations RouteStation[]
+  visits        StationVisit[]
+
+  @@index([latitude, longitude])
+}
+
+model Train {
+  id        String   @id @default(cuid())
+  number    String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  routeStations RouteStation[]
+  runs          TrainRun[]
+}
+
+// The train's fixed stop sequence — one set of rows per train, reused by
+// every run. arrivalDayOffset/departureDayOffset handle multi-day trains.
+model RouteStation {
+  id      String @id @default(cuid())
+  trainId String
+  train   Train  @relation(fields: [trainId], references: [id])
+
+  stationId String
+  station   Station @relation(fields: [stationId], references: [id])
+
+  sequenceNumber Int
+  // Separate arrival/departure day offsets, not one combined field — an
+  // earlier "single day field" assumption was confirmed wrong (Aug 29 2026):
+  // it was based on RailRadar's *legacy* endpoint shape, not the one this
+  // app actually calls (GET /v1/trains/{number}), which gives arrivalDay and
+  // departureDay independently. Null at the origin/terminus respectively.
+  arrivalDayOffset   Int?
+  departureDayOffset Int?
+
+  // Minutes-since-midnight of the respective day above, null at the
+  // origin/terminus respectively. Converted from RailRadar's native
+  // "HH:mm" strings at ingestion, not its native format itself — kept as
+  // Int here to keep delay-minute arithmetic simple.
+  scheduledArrivalTime   Int?
+  scheduledDepartureTime Int?
+
+  @@unique([trainId, sequenceNumber])
+  @@index([stationId])
+}
+
+// ---- Live / operational data -------------------------------------------
+
+enum TrainRunStatus {
+  SCHEDULED
+  RUNNING
+  COMPLETED
+  CANCELLED
+}
+
+// One instance of a train actually running on a given date.
+model TrainRun {
+  id      String @id @default(cuid())
+  trainId String
+  train   Train  @relation(fields: [trainId], references: [id])
+
+  serviceDate    DateTime       @db.Date
+  status         TrainRunStatus @default(SCHEDULED)
+  sourceProvider String // "railradar" | "indianrailapi" | ...
+  createdAt      DateTime       @default(now())
+
+  visits StationVisit[]
+
+  @@unique([trainId, serviceDate])
+}
+
+// Append-only observation log. A new row is written only when something
+// observable changes (actual time, delay, or reason tag) — not on every
+// poll. "Current status" = the newest row per trainRunId, cached in Redis.
+model StationVisit {
+  id         String   @id @default(cuid())
+  trainRunId String
+  trainRun   TrainRun @relation(fields: [trainRunId], references: [id])
+
+  stationId      String
+  station        Station @relation(fields: [stationId], references: [id])
+  sequenceNumber Int
+
+  // Resolved once per (trainRun, station) from RouteStation + serviceDate,
+  // so live reads never need to join through the static tables.
+  scheduledArrivalAt   DateTime?
+  scheduledDepartureAt DateTime?
+
+  actualArrivalAt   DateTime?
+  actualDepartureAt DateTime?
+
+  arrivalDelayMinutes   Int? // actual − scheduled, signed (early = negative)
+  departureDelayMinutes Int?
+
+  visibilityMeters Int? // weather snapshot at observation time (Phase 1)
+  primaryReasonTag String? // nullable until the correlation engine fires
+
+  sourceProvider String
+  loggedAt       DateTime @default(now())
+
+  @@index([trainRunId, sequenceNumber])
+  @@index([stationId, loggedAt])
+}
