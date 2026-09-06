@@ -10,7 +10,7 @@ const spec = swaggerJsdoc({
   definition: {
     openapi: "3.1.0",
     info: {
-      title: "railway-delay",
+      title: "railway-observatory",
       version,
       description: "Railway Delay Intelligence Platform API — see PROJECT.md",
     },
@@ -37,8 +37,28 @@ const spec = swaggerJsdoc({
             id: { type: "string", example: "clx0a1b2c0000qzrm5g8h1a2b" },
             number: { type: "string", example: "12301" },
             name: { type: "string", example: "Howrah Rajdhani" },
+            runDays: {
+              type: "array",
+              items: { type: "string" },
+              example: ["mon", "tue", "thu", "fri"],
+            },
             createdAt: { type: "string", format: "date-time" },
             updatedAt: { type: "string", format: "date-time" },
+          },
+        },
+        StationVisit: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            station: { $ref: "#/components/schemas/Station" },
+            sequenceNumber: { type: "integer" },
+            scheduledArrivalAt: { type: "string", format: "date-time", nullable: true },
+            scheduledDepartureAt: { type: "string", format: "date-time", nullable: true },
+            actualArrivalAt: { type: "string", format: "date-time", nullable: true },
+            actualDepartureAt: { type: "string", format: "date-time", nullable: true },
+            arrivalDelayMinutes: { type: "integer", nullable: true },
+            departureDelayMinutes: { type: "integer", nullable: true },
+            loggedAt: { type: "string", format: "date-time" },
           },
         },
         RouteStation: {

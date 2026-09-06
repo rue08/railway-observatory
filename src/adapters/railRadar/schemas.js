@@ -48,12 +48,21 @@ const RawRouteStop = z.object({
 });
 
 // GET /v1/trains/{number}: { success, data: { train: {...}, route: [...], metadata, liveData? } }
+//
+// train.runDays — lowercase weekday abbreviations ("mon".."sun"), confirmed
+// present on every real train.* object seen this project (e.g. 22440:
+// ["mon","tue","thu","fri","sat","sun"]). Defaulted to [] rather than made
+// required — the reference-data import (route/stations) shouldn't fail just
+// because this one field is ever missing; the scheduler's active-window
+// check treats an empty list as "never active" anyway (see schema.prisma's
+// Train.runDays comment).
 const RawTrainDetailsResponse = z.object({
   success: z.boolean(),
   data: z.object({
     train: z.object({
       number: z.string().min(1),
       name: z.string().min(1),
+      runDays: z.array(z.string()).default([]),
     }),
     route: z.array(RawRouteStop).min(1),
   }),

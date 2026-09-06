@@ -18,8 +18,8 @@ async function importTrainSchedule({ prisma, adapter, trainNumber, logger }) {
     async (tx) => {
       const trainRow = await tx.train.upsert({
         where: { number: train.number },
-        update: { name: train.name },
-        create: { number: train.number, name: train.name },
+        update: { name: train.name, runDays: train.runDays },
+        create: { number: train.number, name: train.name, runDays: train.runDays },
       });
 
       // latitude/longitude come from the adapter when the source provides

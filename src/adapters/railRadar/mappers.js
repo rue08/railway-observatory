@@ -34,6 +34,7 @@ function mapTrainSchedule(rawJson) {
   const train = NormalizedTrain.parse({
     number: raw.data.train.number,
     name: raw.data.train.name,
+    runDays: raw.data.train.runDays,
   });
 
   // Dedupe stations by code — a station shouldn't appear twice with a

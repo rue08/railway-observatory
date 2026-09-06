@@ -1,5 +1,5 @@
 {
-  "name": "railway-delay",
+  "name": "railway-observatory",
   "version": "0.1.0",
   "description": "Railway Delay Intelligence Platform — see PROJECT.md",
   "main": "src/server.js",

@@ -9,6 +9,9 @@ const { z } = require("zod");
 const NormalizedTrain = z.object({
   number: z.string().min(1),
   name: z.string().min(1),
+  // Lowercase weekday abbreviations — see schema.prisma's Train.runDays
+  // comment for why this exists and who consumes it.
+  runDays: z.array(z.string()).default([]),
 });
 
 // latitude/longitude nullish — not every source provides them (see

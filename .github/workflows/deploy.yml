@@ -1,0 +1,31 @@
+name: Deploy
+
+# CD only, deliberately no lint/test jobs yet — there's no linter
+# configured and no real test suite (package.json's `test` script is a
+# placeholder that always exits 1), so those would just be green
+# checkmarks verifying nothing, or worse, a permanently-failing gate
+# blocking deploy. Add them as their own jobs once the tooling behind each
+# one actually exists.
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH in and redeploy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/railway-observatory
+            git pull
+            docker compose up -d --build
+            # Dangling-only cleanup, not `-a` — see the "why not
+            # docker image prune -a -f" discussion. Never touches
+            # volumes, so postgres_data/redis_data are never at risk here.
+            docker image prune -f
+            docker builder prune -f

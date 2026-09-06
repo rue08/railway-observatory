@@ -7,6 +7,13 @@
 
 generator client {
   provider = "prisma-client-js"
+  // "native" keeps local development (`npx prisma generate` on your own
+  // machine) working as before. The second target is what actually gets
+  // used inside the Docker image (see ../Dockerfile): node:20-alpine on
+  // ARM64 is musl-based, not glibc — the plain "linux-arm64" target (built
+  // for a Debian/glibc image) would silently produce a client that fails
+  // at runtime inside this specific container, not a build-time error.
+  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
 }
 
 datasource db {
@@ -39,6 +46,14 @@ model Train {
   id        String   @id @default(cuid())
   number    String   @unique
   name      String
+  // Lowercase weekday abbreviations ("mon", "tue", ...) straight from
+  // RailRadar's train.runDays — the only consumer is the ingestion
+  // scheduler's active-window check (src/scheduler/activeWindow.js), not
+  // the schedule/route lookup or normalize-and-correlate, neither of which
+  // care what day it is. Empty array, not null, when a provider doesn't
+  // send it — isTrainActiveNow() treats an empty list as "never active"
+  // rather than crashing on a missing field.
+  runDays   String[] @default([])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

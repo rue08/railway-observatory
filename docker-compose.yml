@@ -1,4 +1,4 @@
-name: railway-delay
+name: railway-observatory
 
 services:
   postgres:
@@ -30,6 +30,38 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  # api and worker both build from the repo's own Dockerfile — same image,
+  # different command. On the VM, their DATABASE_URL/REDIS_URL (in .env)
+  # must point at the service names below (postgres:5432, redis:6379), not
+  # 127.0.0.1 — these two are on the same Compose network as postgres/redis
+  # and reach them directly, unlike a host-run process using the
+  # host-mapped ports above.
+  api:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # migrate deploy (never `migrate dev` — that one's interactive/local-only)
+    # applies any pending migrations before the server starts serving.
+    command: sh -c "npx prisma migrate deploy && node src/server.js"
+
+  worker:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: sh -c "npx prisma migrate deploy && node src/jobs/workers/index.js"
 
 volumes:
   postgres_data:

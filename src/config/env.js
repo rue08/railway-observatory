@@ -14,6 +14,20 @@ const config = {
   // clear error at call time if it's unset.
   railradarApiKey: process.env.RAILRADAR_API_KEY,
   railradarBaseUrl: process.env.RAILRADAR_BASE_URL || "https://api.railradar.in",
+  // The scheduler's tracked list — the only trains it ever polls, and the
+  // only ones GET /trains/:trainNumber/live will serve (see routes/
+  // trainsLive.js). Comma-separated train numbers, e.g. "12307,12308".
+  // Currently just the Jodhpur<->Howrah pair — quota math for this exact
+  // list lives in docs/tracked-trains.md.
+  trackedTrainNumbers: (process.env.TRACKED_TRAINS || "")
+    .split(",")
+    .map((n) => n.trim())
+    .filter(Boolean),
+  // Minutes between scheduler ticks. 75 was chosen specifically for the
+  // 12307/12308 pair (~823 calls/month, ~177 headroom under RailRadar's
+  // 1,000/month free-tier cap) — see docs/tracked-trains.md. Re-check that
+  // math before changing the tracked list without changing this.
+  schedulerPollIntervalMinutes: parseInt(process.env.SCHEDULER_POLL_INTERVAL_MINUTES, 10) || 75,
 };
 
 if (!config.databaseUrl) {

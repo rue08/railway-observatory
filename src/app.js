@@ -3,6 +3,7 @@ const pinoHttp = require("pino-http");
 const logger = require("./lib/logger");
 const healthRouter = require("./routes/health");
 const trainsRouter = require("./routes/trains");
+const trainsLiveRouter = require("./routes/trainsLive");
 const stationsRouter = require("./routes/stations");
 const routeStationRouter = require("./routes/routeStation");
 const docsRouter = require("./routes/docs");
@@ -15,6 +16,7 @@ app.use(express.json());
 
 app.use(healthRouter);
 app.use(trainsRouter);
+app.use(trainsLiveRouter);
 app.use(stationsRouter);
 app.use(routeStationRouter);
 app.use(docsRouter);
