@@ -41,8 +41,14 @@ services:
     build: .
     restart: unless-stopped
     env_file: .env
+    # Loopback-only: nginx (host-installed, terminates TLS for
+    # railway-observatory.duckdns.org) is the only thing meant to be
+    # reachable from outside, proxying to 127.0.0.1:3000. Binding to
+    # 127.0.0.1 here means 3000 stays unreachable from the internet even
+    # if the OCI security list or the VM's iptables rules are ever
+    # loosened later.
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
       postgres:
         condition: service_healthy
