@@ -14,6 +14,11 @@ const config = {
   // clear error at call time if it's unset.
   railradarApiKey: process.env.RAILRADAR_API_KEY,
   railradarBaseUrl: process.env.RAILRADAR_BASE_URL || "https://api.railradar.in",
+  // Same non-validated stance as railradarApiKey — only normalize-and-
+  // correlate's weather enrichment needs this, not the server/worker
+  // startup path, so a missing key shouldn't block those. WeatherAdapter
+  // throws a clear error at call time if it's unset.
+  openWeatherMapApiKey: process.env.OPENWEATHERMAP_API_KEY,
   // The scheduler's tracked list — the only trains it ever polls, and the
   // only ones GET /trains/:trainNumber/live will serve (see routes/
   // trainsLive.js). Comma-separated train numbers, e.g. "12307,12308".

@@ -3,6 +3,12 @@ const connection = require("../connection");
 const logger = require("../../lib/logger");
 const prisma = require("../../lib/prisma");
 const { normalizeAndCorrelateVisits } = require("../../normalize/stationVisits");
+const { WeatherAdapter } = require("../../adapters/weatherAdapter");
+
+// One shared instance, same lifetime as this worker process — WeatherAdapter
+// holds no per-call state, so there's no reason to construct a fresh one
+// per job the way stationVisits.js's params (trainNumber, etc.) are.
+const weatherAdapter = new WeatherAdapter();
 
 // Job payload: { trainNumber, journeyStatus, serviceDate, sourceProvider,
 // stationVisits } — one batch of newly-departed NormalizedStationVisits
@@ -24,6 +30,7 @@ const normalizeAndCorrelateWorker = new Worker(
       sourceProvider,
       stationVisits,
       logger,
+      weatherAdapter,
     });
 
     logger.info(

@@ -9,8 +9,9 @@ const { z } = require("zod");
 // returning null where a date was expected.
 //
 // Deliberately excludes fields the railway adapter doesn't own:
-// - visibilityMeters — comes from a separate WeatherAdapter, merged in later
-//   by the normalize-and-correlate worker (§6), not part of this shape.
+// - visibilityMeters, weatherCondition — come from a separate WeatherAdapter
+//   (src/adapters/weatherAdapter.js), merged in by normalize-and-correlate
+//   (§6/§9), not part of this shape.
 // - primaryReasonTag — set by the correlation engine (§10), never by a
 //   railway adapter directly.
 // - our internal Station/TrainRun ids — adapters only know station codes

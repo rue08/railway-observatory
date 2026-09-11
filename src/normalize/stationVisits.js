@@ -2,14 +2,16 @@ const { NormalizedStationVisit } = require("../adapters/schemas/normalizedStatio
 
 // Persists one ingestion batch (one train, one or more live station visits)
 // into the append-only StationVisit log — PROJECT.md §6/§9. Split out from
-// the worker itself, prisma injected rather than imported directly, so this
-// stays testable against a fake/mock client with no real DB or queue
-// involved — same split as import/referenceData.js from routes/trains.js.
+// the worker itself, prisma/weatherAdapter injected rather than imported
+// directly, so this stays testable against fakes/mocks with no real DB,
+// queue, or weather API call involved — same split as import/
+// referenceData.js from routes/trains.js.
 //
 // Deliberately does NOT touch Redis (the "current status" cache) or the
-// correlation engine (primaryReasonTag stays null — M4/M5 aren't built yet,
-// there's no weather/event data to correlate against). Both are scoped as
-// separate follow-ups, not part of this pass.
+// correlation engine (primaryReasonTag stays null — M5 isn't built yet,
+// there's no event data to correlate against). Weather enrichment landed
+// Sept 12 2026 (WeatherAdapter, §4/§9) — visibilityMeters/weatherCondition
+// are populated below; primaryReasonTag stays a separate M5 follow-up.
 
 // null and undefined both collapse to null here — a provider (or zod's
 // nullish()) may hand back either for "no value", and StationVisit's
@@ -79,6 +81,10 @@ async function normalizeAndCorrelateVisits({
   sourceProvider,
   stationVisits: rawVisits,
   logger,
+  // Optional — tests/callers that don't care about weather can omit it and
+  // every visit is just written with null visibilityMeters/weatherCondition,
+  // same "logger?." pattern already used below.
+  weatherAdapter,
 }) {
   const stationVisits = rawVisits.map((v) => withNullsNormalized(NormalizedStationVisit.parse(v)));
   const isCompleted = journeyStatus === "completed";
@@ -139,6 +145,32 @@ async function normalizeAndCorrelateVisits({
 
         if (isUnchanged(latest, visit)) continue;
 
+        // Fetched here, inside the write loop but before the create — only
+        // for visits that actually turn into a new row, not every visit in
+        // the batch (most polls re-observe already-logged stops, which
+        // `continue` above already skipped). In steady state that's a
+        // handful of new visits per 75-min poll, not the "few hundred"
+        // scale importTrainSchedule's transaction timeout was sized for, so
+        // a couple of sequential HTTP calls here doesn't meaningfully
+        // threaten this transaction's own timeout below. A weather failure
+        // is caught and logged, not thrown — losing the OpenWeatherMap call
+        // for one stop is not a reason to lose or retry the real railway
+        // observation it's attached to.
+        let weatherSnapshot = null;
+        if (weatherAdapter && station.latitude != null && station.longitude != null) {
+          try {
+            weatherSnapshot = await weatherAdapter.fetchCurrentConditions({
+              latitude: station.latitude,
+              longitude: station.longitude,
+            });
+          } catch (err) {
+            logger?.warn(
+              { err, trainNumber, stationCode: visit.stationCode },
+              "normalize-and-correlate: weather fetch failed, writing visit without it"
+            );
+          }
+        }
+
         await tx.stationVisit.create({
           data: {
             trainRunId: trainRun.id,
@@ -150,7 +182,9 @@ async function normalizeAndCorrelateVisits({
             actualDepartureAt: visit.actualDepartureAt,
             arrivalDelayMinutes: visit.arrivalDelayMinutes,
             departureDelayMinutes: visit.departureDelayMinutes,
-            // Left null — no correlation engine yet (M4/M5 not started).
+            visibilityMeters: weatherSnapshot?.visibilityMeters ?? null,
+            weatherCondition: weatherSnapshot?.weatherCondition ?? null,
+            // Left null — no correlation engine yet (M5 not started).
             primaryReasonTag: null,
             sourceProvider: visit.sourceProvider,
           },

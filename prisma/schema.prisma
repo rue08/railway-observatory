@@ -140,6 +140,15 @@ model StationVisit {
   departureDelayMinutes Int?
 
   visibilityMeters Int? // weather snapshot at observation time (Phase 1)
+  // Raw OpenWeatherMap weather[0].main category ("Rain", "Fog", "Clear",
+  // ...) at the same observation, added Sept 12 2026 alongside WeatherAdapter
+  // — kept separate from visibilityMeters rather than inferring rain/fog
+  // from a visibility threshold, since fog reliably tanks visibility but
+  // rain often doesn't, and low visibility can also mean haze/dust that
+  // isn't rain/fog at all. §10's rubric rule checks this field directly,
+  // not visibilityMeters. Deliberately not further categorized/normalized
+  // here — that's the correlation engine's job (§10), not the adapter's.
+  weatherCondition String?
   primaryReasonTag String? // nullable until the correlation engine fires
 
   sourceProvider String
