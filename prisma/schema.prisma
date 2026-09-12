@@ -1,9 +1,12 @@
 // Phase 1 (MVP) schema — see project brief §16, §31, §33 and the
 // Delay Intelligence Data Map artifact for the column → source rationale.
 //
-// Deliberately excludes: OperationalEvent, WeatherEvent, NewsEvent,
-// DataSource, SourceRecord, Prediction, ReliabilityScore.
-// Those are Phase 2+ once the live pipeline is proven.
+// Deliberately excludes: OperationalEvent, DataSource, SourceRecord,
+// Prediction, ReliabilityScore. Those are Phase 2+ once the live pipeline is
+// proven. NewsEvent (below) landed Sept 13 2026 — no longer excluded; it's
+// the one entity from the original brief's full list that M4 actually
+// needed. WeatherEvent never became its own table (Sept 12 2026, see
+// PROJECT.md §4/§9) — weather is columns on StationVisit instead.
 
 generator client {
   provider = "prisma-client-js"
@@ -154,6 +157,69 @@ model StationVisit {
   sourceProvider String
   loggedAt       DateTime @default(now())
 
+  newsMatches NewsEventMatch[]
+
   @@index([trainRunId, sequenceNumber])
   @@index([stationId, loggedAt])
+}
+
+// ---- Event intelligence (M4) --------------------------------------------
+
+// One Google News RSS item — PROJECT.md §4/§9, built Sept 13 2026. Kept
+// deliberately unstructured beyond what the feed itself gives (no tagged
+// train-number/category fields): matching against StationVisit is done by
+// scanning `title` text at match time (see newsMatching.js), not by
+// expecting the source to hand us structured tags.
+model NewsEvent {
+  id  String @id @default(cuid())
+  // The feed's <link> — a Google-wrapped redirect URL, not the original
+  // publisher's URL. Still unique per item and stable across polls, so it
+  // works fine as the natural upsert key without a separate externalId.
+  sourceUrl String @unique
+  title     String
+  // From the feed's own <source> tag, not split out of `title` — real
+  // fetched data (Sept 13 2026) showed <source> is already a clean,
+  // separate field, more robust than string-splitting title on " - "
+  // (which a headline containing its own hyphenated fragment could break).
+  sourceOutlet String?
+  publishedAt  DateTime
+  // Single value for now ("established-outlet") since every Google News
+  // hit so far has been real journalism — per-outlet trust ranking (Hindu/
+  // Indian Express vs. an unfamiliar site) is a still-open question, not
+  // decided (PROJECT.md §9).
+  trustTier String @default("established-outlet")
+  createdAt DateTime @default(now())
+
+  matches NewsEventMatch[]
+
+  @@index([publishedAt])
+}
+
+// The link between a NewsEvent and a StationVisit it plausibly explains —
+// the "geo/temporal correlation" M4 is scoped to produce. A join table, not
+// a bare FK either direction, since one incident can plausibly explain
+// several observed delays and (in principle) one delay could get matched by
+// more than one news item. Created by newsMatching.js, from whichever side
+// (a new NewsEvent or a new delayed StationVisit) runs the match second —
+// `@@unique` makes creating it from both directions safe to attempt.
+//
+// Deliberately just the link plus what matched on — no score, no evidence
+// text, no tier. Turning this into points/evidence for primaryReasonTag is
+// M5's job (PROJECT.md §10/§13), not M4's.
+model NewsEventMatch {
+  id String @id @default(cuid())
+
+  newsEventId String
+  newsEvent   NewsEvent @relation(fields: [newsEventId], references: [id])
+
+  stationVisitId String
+  stationVisit   StationVisit @relation(fields: [stationVisitId], references: [id])
+
+  // "trainNumber" | "stationName" — which text-match rule fired, per §4's
+  // "matching by train-number-in-title first, station-name-in-title as
+  // fallback" design.
+  matchedOn String
+  createdAt DateTime @default(now())
+
+  @@unique([newsEventId, stationVisitId])
 }

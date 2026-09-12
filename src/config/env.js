@@ -33,6 +33,11 @@ const config = {
   // 1,000/month free-tier cap) — see docs/tracked-trains.md. Re-check that
   // math before changing the tracked list without changing this.
   schedulerPollIntervalMinutes: parseInt(process.env.SCHEDULER_POLL_INTERVAL_MINUTES, 10) || 75,
+  // Hourly by default, per §4's design — news isn't gated by any train's
+  // active window (a disruption notice matters whether or not a tracked
+  // train happens to be running), so this has no relationship to
+  // schedulerPollIntervalMinutes above.
+  newsPollIntervalMinutes: parseInt(process.env.NEWS_POLL_INTERVAL_MINUTES, 10) || 60,
 };
 
 if (!config.databaseUrl) {

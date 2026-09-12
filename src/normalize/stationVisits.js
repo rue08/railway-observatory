@@ -1,4 +1,5 @@
 const { NormalizedStationVisit } = require("../adapters/schemas/normalizedStationVisit");
+const { matchVisitAgainstNewsEvents } = require("./newsMatching");
 
 // Persists one ingestion batch (one train, one or more live station visits)
 // into the append-only StationVisit log — PROJECT.md §6/§9. Split out from
@@ -171,7 +172,7 @@ async function normalizeAndCorrelateVisits({
           }
         }
 
-        await tx.stationVisit.create({
+        const createdVisit = await tx.stationVisit.create({
           data: {
             trainRunId: trainRun.id,
             stationId: station.id,
@@ -190,6 +191,20 @@ async function normalizeAndCorrelateVisits({
           },
         });
         written++;
+
+        // The reverse direction of §4's bidirectional news matching — the
+        // other direction (a new NewsEvent scanning recent delayed visits)
+        // lives in news.worker.js. Pure DB work (no external HTTP call), so
+        // unlike the weather fetch above there's no reason to keep it out
+        // of this transaction. No-ops immediately inside the helper itself
+        // if this visit isn't actually delayed — nothing to match otherwise.
+        await matchVisitAgainstNewsEvents({
+          prisma: tx,
+          visit: createdVisit,
+          trainNumber,
+          stationName: station.name,
+          logger,
+        });
       }
 
       logger?.info(
