@@ -17,7 +17,20 @@ const ENDPOINTS = {
   // A dedicated, separate endpoint from trainSchedule above — not the
   // liveData block sometimes embedded in that one's response (present for
   // some trains, absent for others, unreliable — see PROJECT.md §5/§6).
-  liveStatus: (trainNumber) => `/v1/trains/${trainNumber}/live`,
+  //
+  // serviceDate is optional and, when given, appended as `date` (YYYY-MM-DD)
+  // — confirmed against RailRadar's own docs Sept 13 2026 (PROJECT.md
+  // §6/§13): "Omit to auto-detect current run." Not `startDate` — an
+  // earlier version of this guessed that name from the response field
+  // RailRadar happens to echo it back as, which turned out wrong; the
+  // actual request parameter is `date`. Omitting it is exactly the
+  // "auto-detect current run" behavior that orphaned mid-journey runs
+  // during daily-departure overlap (§13) — every caller that already knows
+  // which serviceDate it means should pass it explicitly.
+  liveStatus: (trainNumber, serviceDate) =>
+    serviceDate
+      ? `/v1/trains/${trainNumber}/live?date=${serviceDate}`
+      : `/v1/trains/${trainNumber}/live`,
 };
 
 class RailRadarAdapter {
@@ -35,8 +48,12 @@ class RailRadarAdapter {
   // — updated shape, Aug 30 2026 (was a bare NormalizedStationVisit[]; see
   // mapLiveStatus's comment for why). stationVisits holds only
   // actually-departed stops.
-  async fetchLiveStatus(trainNumber) {
-    const rawJson = await this._request(ENDPOINTS.liveStatus(trainNumber));
+  //
+  // serviceDate ("YYYY-MM-DD") is optional but should be passed whenever
+  // the caller already knows which run it means — see ENDPOINTS.liveStatus
+  // above for why that matters.
+  async fetchLiveStatus(trainNumber, serviceDate) {
+    const rawJson = await this._request(ENDPOINTS.liveStatus(trainNumber, serviceDate));
     return mapLiveStatus(rawJson);
   }
 

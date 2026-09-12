@@ -102,6 +102,14 @@ async function normalizeAndCorrelateVisits({
     );
   }
 
+  // The route's last stop — used below as a completion backstop independent
+  // of journeyStatus (§6/§13, added Sept 13 2026). Static reference data,
+  // read once per batch outside the transaction, same as `train` above.
+  const terminus = await prisma.routeStation.findFirst({
+    where: { trainId: train.id },
+    orderBy: { sequenceNumber: "desc" },
+  });
+
   const serviceDate = new Date(rawServiceDate);
 
   return prisma.$transaction(
@@ -128,6 +136,10 @@ async function normalizeAndCorrelateVisits({
       if (nextStatus && nextStatus !== trainRun.status) {
         await tx.trainRun.update({ where: { id: trainRun.id }, data: { status: nextStatus } });
       }
+      // Tracked separately from `nextStatus` (which stays fixed at its
+      // initial value above) since the terminus backstop below can flip
+      // this again, mid-loop, after `nextStatus` was already decided.
+      let currentStatus = nextStatus ?? trainRun.status;
 
       let written = 0;
       for (const visit of stationVisits) {
@@ -192,6 +204,30 @@ async function normalizeAndCorrelateVisits({
         });
         written++;
 
+        // Completion backstop, added Sept 13 2026 (§6/§13) — independent of
+        // journeyStatus and of delay (runs for an on-time terminus arrival
+        // exactly the same as a delayed one; arrivalDelayMinutes never
+        // enters into this check). RailRadar's own journeyStatus flag is
+        // what usually flips a run to COMPLETED (above), but this is what
+        // catches it if that flag never comes through for some reason —
+        // e.g. this exact serviceDate never gets polled again for whatever
+        // reason after reaching its terminus. Real arrival at the route's
+        // actual last stop is a stronger signal than a self-reported status
+        // flag anyway.
+        if (
+          currentStatus !== "COMPLETED" &&
+          terminus &&
+          visit.sequenceNumber === terminus.sequenceNumber &&
+          visit.actualArrivalAt != null
+        ) {
+          await tx.trainRun.update({ where: { id: trainRun.id }, data: { status: "COMPLETED" } });
+          currentStatus = "COMPLETED";
+          logger?.info(
+            { trainNumber, trainRunId: trainRun.id },
+            "normalize-and-correlate: terminus arrival observed, marking run COMPLETED"
+          );
+        }
+
         // The reverse direction of §4's bidirectional news matching — the
         // other direction (a new NewsEvent scanning recent delayed visits)
         // lives in news.worker.js. Pure DB work (no external HTTP call), so
@@ -212,7 +248,7 @@ async function normalizeAndCorrelateVisits({
           trainNumber,
           trainRunId: trainRun.id,
           journeyStatus,
-          trainRunStatus: nextStatus ?? trainRun.status,
+          trainRunStatus: currentStatus,
           received: stationVisits.length,
           written,
         },
