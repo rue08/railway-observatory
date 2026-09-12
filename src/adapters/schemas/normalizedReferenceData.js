@@ -12,6 +12,11 @@ const NormalizedTrain = z.object({
   // Lowercase weekday abbreviations — see schema.prisma's Train.runDays
   // comment for why this exists and who consumes it.
   runDays: z.array(z.string()).default([]),
+  // Added Sept 13 2026 — see schema.prisma's Train.destinationCode comment.
+  // Nullish, not required: only fetchTrainSchedule's response carries it
+  // (fetchTrainDirectory's bare [number, name] tuples don't), and this
+  // shape is shared by both.
+  destinationCode: z.string().nullish(),
 });
 
 // latitude/longitude nullish — not every source provides them (see

@@ -54,11 +54,22 @@ model Train {
   // scheduler's active-window check (src/scheduler/activeWindow.js), not
   // the schedule/route lookup or normalize-and-correlate, neither of which
   // care what day it is. Empty array, not null, when a provider doesn't
-  // send it — isTrainActiveNow() treats an empty list as "never active"
-  // rather than crashing on a missing field.
+  // send it — hasTodaysDepartureStarted() treats an empty list as "never
+  // active" rather than crashing on a missing field.
   runDays   String[] @default([])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  // RailRadar's own train.destination.code (e.g. "JU" for 12307), added
+  // Sept 13 2026 (§6/§13). Nullable — trains imported before this field
+  // existed have it null until re-imported. Used by normalize-and-
+  // correlate's completion backstop as an identity-based check
+  // (visit.stationCode === destinationCode) instead of comparing
+  // RouteStation's own sequenceNumber against a given day's live-feed
+  // sequenceNumber — confirmed those two numbering schemes can genuinely
+  // disagree (RouteStation and a specific day's live route each include
+  // their own different subset of non-halt technical waypoints), so a
+  // sequence-number comparison silently never fired.
+  destinationCode String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   routeStations RouteStation[]
   runs          TrainRun[]

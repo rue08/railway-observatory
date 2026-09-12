@@ -35,6 +35,7 @@ function mapTrainSchedule(rawJson) {
     number: raw.data.train.number,
     name: raw.data.train.name,
     runDays: raw.data.train.runDays,
+    destinationCode: raw.data.train.destination.code,
   });
 
   // Dedupe stations by code — a station shouldn't appear twice with a

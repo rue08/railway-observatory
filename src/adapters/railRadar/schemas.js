@@ -63,6 +63,16 @@ const RawTrainDetailsResponse = z.object({
       number: z.string().min(1),
       name: z.string().min(1),
       runDays: z.array(z.string()).default([]),
+      // Added Sept 13 2026 (PROJECT.md §6/§13) — real responses already
+      // carried this, it was just silently stripped by zod before now (no
+      // caller read it). Used as an identity-based completion signal
+      // (visit.stationCode === train.destinationCode) instead of comparing
+      // sequence numbers across RailRadar endpoints, which are confirmed
+      // NOT guaranteed to agree (RouteStation's own imported numbering and
+      // a given day's live-feed numbering can differ by several stops,
+      // depending on which non-halt technical waypoints each happens to
+      // include).
+      destination: z.object({ code: z.string().min(1) }),
     }),
     route: z.array(RawRouteStop).min(1),
   }),
