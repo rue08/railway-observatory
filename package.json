@@ -6,8 +6,6 @@
   "scripts": {
     "start": "node src/server.js",
     "worker": "node src/jobs/workers/index.js",
-    "reconcile": "node scripts/reconcileStaleTrainRuns.js",
-    "reimport": "node scripts/reimportTrainSchedule.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "license": "UNLICENSED",
