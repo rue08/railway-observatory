@@ -6,6 +6,10 @@ const trainsRouter = require("./routes/trains");
 const trainsLiveRouter = require("./routes/trainsLive");
 const stationsRouter = require("./routes/stations");
 const routeStationRouter = require("./routes/routeStation");
+const newsEventsRouter = require("./routes/newsEvents");
+const newsEventMatchesRouter = require("./routes/newsEventMatches");
+const delayAttributionsRouter = require("./routes/delayAttributions");
+const delayAttributionReasonsRouter = require("./routes/delayAttributionReasons");
 const docsRouter = require("./routes/docs");
 
 const app = express();
@@ -19,6 +23,10 @@ app.use(trainsRouter);
 app.use(trainsLiveRouter);
 app.use(stationsRouter);
 app.use(routeStationRouter);
+app.use(newsEventsRouter);
+app.use(newsEventMatchesRouter);
+app.use(delayAttributionsRouter);
+app.use(delayAttributionReasonsRouter);
 app.use(docsRouter);
 
 // 404 — no route matched.
