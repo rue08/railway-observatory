@@ -168,7 +168,8 @@ model StationVisit {
   sourceProvider String
   loggedAt       DateTime @default(now())
 
-  newsMatches NewsEventMatch[]
+  newsMatches       NewsEventMatch[]
+  delayAttributions DelayAttribution[]
 
   @@index([trainRunId, sequenceNumber])
   @@index([stationId, loggedAt])
@@ -233,4 +234,64 @@ model NewsEventMatch {
   createdAt DateTime @default(now())
 
   @@unique([newsEventId, stationVisitId])
+}
+
+// ---- Delay attribution (M5) ----------------------------------------------
+// The scored correlation engine — PROJECT.md §10, design fully settled
+// Sept 13 2026. Append-only, same convention as StationVisit: a new row is
+// written only when the computed result actually differs from the last one
+// for that visit (normalize/delayAttribution.js's isAttributionUnchanged),
+// never overwritten in place — "current" attribution for a visit is the
+// newest row by computedAt. Its own table, not columns on StationVisit —
+// unlike weatherCondition/visibilityMeters (a write-once snapshot from the
+// same moment the visit is logged), this gets re-computed later by a
+// separate scheduled job (jobs/workers/delayAttribution.worker.js), since
+// news can still arrive after the visit is first written.
+
+enum ConfidenceTier {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model DelayAttribution {
+  id             String       @id @default(cuid())
+  stationVisitId String
+  stationVisit   StationVisit @relation(fields: [stationVisitId], references: [id])
+
+  // Only ever a genuine cause (weather/maintenance/congestion/accident/
+  // disruption) — never "news-corroboration", which is evidence a delay
+  // was reported, not a cause of it. Null whenever no genuine cause has
+  // fired yet — confidenceTier is forced to LOW in that case regardless of
+  // totalScore, since "confidence in the reason" means nothing without one.
+  primaryReasonTag String?
+  confidenceTier   ConfidenceTier
+  totalScore       Int
+
+  computedAt DateTime @default(now())
+
+  reasons DelayAttributionReason[]
+
+  @@index([stationVisitId, computedAt])
+}
+
+// One row per contributing signal — relational, not a `reasons Json` array,
+// chosen specifically for analyst SQL usability (plain GROUP BY/AVG over
+// reason lines, no JSON operators needed).
+model DelayAttributionReason {
+  id                 String           @id @default(cuid())
+  delayAttributionId String
+  delayAttribution   DelayAttribution @relation(fields: [delayAttributionId], references: [id])
+
+  // weather | maintenance | congestion | accident | disruption |
+  // news-corroboration. Plain String, not an enum — same reasoning as
+  // StationVisit.primaryReasonTag/NewsEventMatch.matchedOn: a new category
+  // shouldn't require a migration to add.
+  reason    String
+  score     Int
+  source    String // "weather-snapshot" | "news"
+  matchType String? // "trainNumber" | "stationName" — news-derived reasons only
+  detail    String // the evidence line itself, human-readable
+
+  @@index([delayAttributionId])
 }

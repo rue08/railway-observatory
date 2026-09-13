@@ -11,6 +11,8 @@
 // same match predicate (matchedOnFor) and the same row-creation helper
 // (recordMatch) — that's the "one matcher, two trigger points" split.
 
+const { TRAIN_ZONE, isDifferentZoneMentioned } = require("../constants/trainZones");
+
 // ±1 hour — §4's "unconfirmed exact number, a judgment call" figure.
 const MATCH_WINDOW_MS = 60 * 60 * 1000;
 
@@ -26,7 +28,21 @@ function extractTrainNumbers(title) {
 // -> "trainNumber" | "stationName" | null
 function matchedOnFor(newsTitle, trainNumber, stationName) {
   if (extractTrainNumbers(newsTitle).includes(trainNumber)) return "trainNumber";
-  if (stationName && newsTitle.includes(stationName)) return "stationName";
+
+  if (stationName && newsTitle.includes(stationName)) {
+    // Zone negative filter, added Sept 14 2026 (PROJECT.md §10) —
+    // stationName is the weaker of the two match types (a station name
+    // like "Howrah" can appear in unrelated general news); if the title
+    // explicitly names a different Indian Railways zone than this train's
+    // own, treat it as likely coincidental rather than a real match. Fails
+    // open (no filtering applied) for any train without a known zone in
+    // TRAIN_ZONE — see constants/trainZones.js for why that's a small,
+    // hardcoded set rather than sourced data.
+    const ownZone = TRAIN_ZONE[trainNumber];
+    if (ownZone && isDifferentZoneMentioned(newsTitle, ownZone.name)) return null;
+    return "stationName";
+  }
+
   return null;
 }
 

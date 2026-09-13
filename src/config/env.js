@@ -38,6 +38,14 @@ const config = {
   // train happens to be running), so this has no relationship to
   // schedulerPollIntervalMinutes above.
   newsPollIntervalMinutes: parseInt(process.env.NEWS_POLL_INTERVAL_MINUTES, 10) || 60,
+  // M5 (PROJECT.md §10) — how often the delay-attribution engine re-scans
+  // delayed StationVisits for new evidence. Hourly by default, matching
+  // newsPollIntervalMinutes above: news is the only thing that can arrive
+  // *after* a visit is first written (weather is a write-once snapshot at
+  // the same moment), so there's little value polling faster than news
+  // itself does.
+  delayAttributionPollIntervalMinutes:
+    parseInt(process.env.DELAY_ATTRIBUTION_POLL_INTERVAL_MINUTES, 10) || 60,
 };
 
 if (!config.databaseUrl) {
