@@ -64,6 +64,17 @@ const spec = swaggerJsdoc({
             updatedAt: { type: "string", format: "date-time" },
           },
         },
+        TrainRun: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            trainId: { type: "string" },
+            serviceDate: { type: "string", format: "date" },
+            status: { type: "string", enum: ["SCHEDULED", "RUNNING", "COMPLETED", "CANCELLED"] },
+            sourceProvider: { type: "string", example: "railradar" },
+            createdAt: { type: "string", format: "date-time" },
+          },
+        },
         StationVisit: {
           type: "object",
           properties: {
