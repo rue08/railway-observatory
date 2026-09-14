@@ -11,6 +11,7 @@ const newsEventMatchesRouter = require("./routes/newsEventMatches");
 const delayAttributionsRouter = require("./routes/delayAttributions");
 const delayAttributionReasonsRouter = require("./routes/delayAttributionReasons");
 const docsRouter = require("./routes/docs");
+const apiKeyAuth = require("./lib/apiKeyAuth");
 
 const app = express();
 
@@ -18,7 +19,14 @@ const app = express();
 app.use(pinoHttp({ logger }));
 app.use(express.json());
 
+// Public — no X-API-Key required. Order matters here: everything mounted
+// below apiKeyAuth is protected by it, so a new route only stays public by
+// being deliberately added above this line, never the other way around.
 app.use(healthRouter);
+app.use(docsRouter);
+
+app.use(apiKeyAuth);
+
 app.use(trainsRouter);
 app.use(trainsLiveRouter);
 app.use(stationsRouter);
@@ -27,7 +35,6 @@ app.use(newsEventsRouter);
 app.use(newsEventMatchesRouter);
 app.use(delayAttributionsRouter);
 app.use(delayAttributionReasonsRouter);
-app.use(docsRouter);
 
 // 404 — no route matched.
 app.use((req, res) => {

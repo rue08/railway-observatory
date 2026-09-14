@@ -46,6 +46,12 @@ const config = {
   // itself does.
   delayAttributionPollIntervalMinutes:
     parseInt(process.env.DELAY_ATTRIBUTION_POLL_INTERVAL_MINUTES, 10) || 60,
+  // Shared secret for the X-API-Key header — validated below like
+  // DATABASE_URL/REDIS_URL, not left unvalidated like railradarApiKey/
+  // openWeatherMapApiKey, since apiKeyAuth.js guards nearly every route and
+  // a missing value would otherwise 401 the whole API at request time
+  // instead of failing loudly at startup.
+  apiKey: process.env.API_KEY,
 };
 
 if (!config.databaseUrl) {
@@ -56,6 +62,11 @@ if (!config.databaseUrl) {
 if (!config.redisUrl) {
   throw new Error(
     "REDIS_URL is not set — copy .env.example to .env and fill it in."
+  );
+}
+if (!config.apiKey) {
+  throw new Error(
+    "API_KEY is not set — copy .env.example to .env and fill it in."
   );
 }
 

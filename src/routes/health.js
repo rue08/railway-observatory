@@ -9,7 +9,8 @@ const router = express.Router();
  * /health:
  *   get:
  *     summary: Health
- *     description: Pings Postgres (`SELECT 1`) and Redis (`PING`); healthy only when both respond.
+ *     security: []
+ *     description: Pings Postgres (`SELECT 1`) and Redis (`PING`); healthy only when both respond. No X-API-Key required — unlike every other route, so uptime/monitoring tools can hit this without a secret.
  *     responses:
  *       200:
  *         description: Both dependencies reachable

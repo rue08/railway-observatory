@@ -14,10 +14,22 @@ const spec = swaggerJsdoc({
       version,
       description: "Railway Delay Intelligence Platform API — see PROJECT.md",
     },
+    // Applies to every operation unless a route overrides it with its own
+    // `security: []` (see health.js) — matches apiKeyAuth.js's actual
+    // behavior: everything requires X-API-Key except /health (and /docs,
+    // /openapi.json themselves, which aren't part of this spec at all).
+    security: [{ ApiKeyAuth: [] }],
     // Shared response shapes, mirroring prisma/schema.prisma. Kept here
     // rather than scattered across route JSDoc blocks so every route
     // references the same schema instead of redefining it.
     components: {
+      securitySchemes: {
+        ApiKeyAuth: {
+          type: "apiKey",
+          in: "header",
+          name: "X-API-Key",
+        },
+      },
       schemas: {
         Station: {
           type: "object",
