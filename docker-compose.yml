@@ -8,8 +8,17 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "5433:5432"
+    # No published port, fully internal: the app never used this mapping
+    # (api/worker reach postgres:5432 over the Compose network — see the
+    # comment below), and the healthcheck's pg_isready runs inside the
+    # container regardless of any host port. Direct access is
+    # `docker compose exec postgres psql -U ... -d ...` — no port, no
+    # SSH tunnel, no exposure at all, not even to 127.0.0.1.
+    #
+    # This drops local Mac access at 127.0.0.1:5433 (.env.local used
+    # that for the bare `npm start`/`npm run worker` processes) — a
+    # deliberate loss, not an oversight; pick it back up when .env.local
+    # is revisited.
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
