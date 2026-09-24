@@ -30,8 +30,13 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    ports:
-      - "6379:6379"
+    # No published port, fully internal, same reasoning as postgres above:
+    # api/worker reach redis:6379 over the Compose network, the healthcheck's
+    # redis-cli ping runs inside the container, and this Redis has no
+    # password, so a host port would be an unauthenticated service one
+    # firewall rule away from the internet. Direct access is
+    # `docker compose exec redis redis-cli`. Also drops local Mac access at
+    # 127.0.0.1:6379 (.env.local) — pick it back up with that file.
     volumes:
       - redis_data:/data
     healthcheck:
