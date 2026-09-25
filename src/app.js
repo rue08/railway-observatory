@@ -13,7 +13,6 @@ const newsEventMatchesRouter = require("./routes/newsEventMatches");
 const delayAttributionsRouter = require("./routes/delayAttributions");
 const delayAttributionReasonsRouter = require("./routes/delayAttributionReasons");
 const docsRouter = require("./routes/docs");
-const apiKeyAuth = require("./lib/apiKeyAuth");
 
 const app = express();
 
@@ -21,13 +20,18 @@ const app = express();
 app.use(pinoHttp({ logger }));
 app.use(express.json());
 
-// Public — no X-API-Key required. Order matters here: everything mounted
-// below apiKeyAuth is protected by it, so a new route only stays public by
-// being deliberately added above this line, never the other way around.
+// AUTH MODEL — read before adding a route.
+// There is NO global auth middleware. Each protected route opts in by passing
+// `apiKeyAuth` (lib/apiKeyAuth.js) as its 2nd argument:
+//   router.get("/thing", apiKeyAuth, handler)
+// Why per-route: auth runs only when an exact route matches, so any path that
+// isn't a documented route (/, /foo, /trains/1/bogus, POST /trains, ...)
+// falls through to the 404 below whether or not a key is sent, and the API's
+// shape isn't revealed to unauthenticated callers.
+// The catch: a route that forgets `apiKeyAuth` is PUBLIC. Only health.js and
+// docs.js are meant to be (no apiKeyAuth there, deliberately).
 app.use(healthRouter);
 app.use(docsRouter);
-
-app.use(apiKeyAuth);
 
 app.use(trainsRouter);
 app.use(trainsLiveRouter);
@@ -40,7 +44,7 @@ app.use(newsEventMatchesRouter);
 app.use(delayAttributionsRouter);
 app.use(delayAttributionReasonsRouter);
 
-// 404 — no route matched.
+// 404 — no route matched (also what unknown paths get without an API key).
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });
 });

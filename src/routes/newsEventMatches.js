@@ -1,8 +1,13 @@
 const express = require("express");
 const prisma = require("../lib/prisma");
+const apiKeyAuth = require("../lib/apiKeyAuth");
 const { resolveListMode, DEFAULT_LIST_LIMIT } = require("../lib/listQueryMode");
 
 const router = express.Router();
+
+// Auth is per-route, not global: every router.get below must pass apiKeyAuth
+// as its 2nd argument (see lib/apiKeyAuth.js for why). A route without it is
+// PUBLIC.
 
 /**
  * @openapi
@@ -42,7 +47,7 @@ const router = express.Router();
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.get("/news-event-matches", async (req, res) => {
+router.get("/news-event-matches", apiKeyAuth, async (req, res) => {
   const result = resolveListMode(req.query);
   if (result.error) {
     return res.status(400).json({ error: result.error });
@@ -93,7 +98,7 @@ router.get("/news-event-matches", async (req, res) => {
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.get("/news-event-matches/:id", async (req, res) => {
+router.get("/news-event-matches/:id", apiKeyAuth, async (req, res) => {
   const newsEventMatch = await prisma.newsEventMatch.findUnique({ where: { id: req.params.id } });
   if (!newsEventMatch) {
     return res.status(404).json({ error: `No news event match found for id ${req.params.id}` });

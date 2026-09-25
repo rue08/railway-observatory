@@ -1,11 +1,13 @@
 const crypto = require("crypto");
 const config = require("../config/env");
 
-// Guards every route mounted after it in app.js — /health, /docs, and
-// /openapi.json are deliberately mounted before this middleware, so they
-// stay public; everything mounted after it requires a matching X-API-Key
-// header. New routes are protected by default just by where they're
-// registered, no per-route opt-in needed.
+// Per-route guard, NOT global middleware: every protected route must pass it
+// explicitly, e.g. `router.get("/thing", apiKeyAuth, handler)`. Only /health,
+// /docs and /openapi.json omit it and stay public.
+// Deliberate consequence: a NEW ROUTE THAT FORGETS THIS IS PUBLIC. In return,
+// unmatched paths never reach this middleware, so they 404 instead of 401 —
+// unauthenticated callers can't tell real routes from made-up ones. Don't
+// "fix" this by moving it back to a global app.use(apiKeyAuth).
 function apiKeyAuth(req, res, next) {
   const provided = req.get("X-API-Key");
 

@@ -1,9 +1,14 @@
 const express = require("express");
 const prisma = require("../lib/prisma");
+const apiKeyAuth = require("../lib/apiKeyAuth");
 const railRadarAdapter = require("../lib/railRadarAdapter");
 const { importTrainSchedule } = require("../import/referenceData");
 
 const router = express.Router();
+
+// Auth is per-route, not global: every router.get below must pass apiKeyAuth
+// as its 2nd argument (see lib/apiKeyAuth.js for why). A route without it is
+// PUBLIC.
 
 /**
  * @openapi
@@ -29,7 +34,7 @@ const router = express.Router();
 // same rationale as GET /stations: trains only ever land here as a result
 // of a prior GET /trains/:trainNumber import, so this is strictly a read of
 // what's already landed, not a fetch from RailRadar.
-router.get("/trains", async (req, res) => {
+router.get("/trains", apiKeyAuth, async (req, res) => {
   const trains = await prisma.train.findMany({ orderBy: { number: "asc" } });
   res.json({ count: trains.length, trains });
 });
@@ -82,7 +87,7 @@ router.get("/trains", async (req, res) => {
 // importTrainSchedule, PROJECT.md §4/§9), then returns it. Repeat requests
 // for the same train never call RailRadar again, since schedule data is
 // static — this replaces the old hardcoded handpickedTrains.js batch import.
-router.get("/trains/:trainNumber", async (req, res) => {
+router.get("/trains/:trainNumber", apiKeyAuth, async (req, res) => {
   const { trainNumber } = req.params;
 
   // Reject obviously-invalid input before spending a RailRadar call on it —

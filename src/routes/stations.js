@@ -1,7 +1,12 @@
 const express = require("express");
 const prisma = require("../lib/prisma");
+const apiKeyAuth = require("../lib/apiKeyAuth");
 
 const router = express.Router();
+
+// Auth is per-route, not global: every router.get below must pass apiKeyAuth
+// as its 2nd argument (see lib/apiKeyAuth.js for why). A route without it is
+// PUBLIC.
 
 /**
  * @openapi
@@ -29,7 +34,7 @@ const router = express.Router();
 // PROJECT.md §4: Station identity only ever arrives as a byproduct of
 // importing a train's schedule, so this is strictly a read of what's
 // already there.
-router.get("/stations", async (req, res) => {
+router.get("/stations", apiKeyAuth, async (req, res) => {
   const stations = await prisma.station.findMany({ orderBy: { code: "asc" } });
   res.json({ count: stations.length, stations });
 });

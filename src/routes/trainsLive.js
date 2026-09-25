@@ -1,8 +1,13 @@
 const express = require("express");
 const prisma = require("../lib/prisma");
+const apiKeyAuth = require("../lib/apiKeyAuth");
 const config = require("../config/env");
 
 const router = express.Router();
+
+// Auth is per-route, not global: every router.get below must pass apiKeyAuth
+// as its 2nd argument (see lib/apiKeyAuth.js for why). A route without it is
+// PUBLIC.
 
 /**
  * @openapi
@@ -48,7 +53,7 @@ const router = express.Router();
 // deliberate, separate design choice, not a gap). A trainNumber outside
 // config.trackedTrainNumbers is rejected outright: nothing ever polls it,
 // so there's nothing this endpoint could ever honestly return for it.
-router.get("/trains/:trainNumber/live", async (req, res) => {
+router.get("/trains/:trainNumber/live", apiKeyAuth, async (req, res) => {
   const { trainNumber } = req.params;
 
   if (!/^\d{4,5}$/.test(trainNumber)) {

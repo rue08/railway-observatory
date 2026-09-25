@@ -1,7 +1,12 @@
 const express = require("express");
 const prisma = require("../lib/prisma");
+const apiKeyAuth = require("../lib/apiKeyAuth");
 
 const router = express.Router();
+
+// Auth is per-route, not global: every router.get below must pass apiKeyAuth
+// as its 2nd argument (see lib/apiKeyAuth.js for why). A route without it is
+// PUBLIC.
 
 /**
  * @openapi
@@ -46,7 +51,7 @@ const router = express.Router();
 // sequenceNumber. Same identifier convention as GET /trains/:trainNumber —
 // trainId here is the public train *number*, not the internal Train.id, so
 // callers never need to know the internal id shape.
-router.get("/routestation", async (req, res) => {
+router.get("/routestation", apiKeyAuth, async (req, res) => {
   const { trainId: trainNumber } = req.query;
 
   if (!trainNumber || !/^\d{4,5}$/.test(trainNumber)) {
