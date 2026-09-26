@@ -9,6 +9,12 @@ name: Deploy
 on:
   push:
     branches: [main]
+    # Docs-only pushes don't change what runs on the VM, so skip the deploy.
+    # A push mixing docs and code still deploys (GitHub only skips when
+    # every changed file matches).
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
 
 jobs:
   deploy:
